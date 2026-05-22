@@ -1,4 +1,4 @@
-package com.mcdlcn.squaregamesapi;
+package com.mcdlcn.squaregamesapi.CHILDISHGAMBINO;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
