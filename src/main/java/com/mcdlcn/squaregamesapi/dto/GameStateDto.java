@@ -16,9 +16,9 @@ public record GameStateDto(
         List<TokenDto> removedTokens
 ) {
 
-    public static GameStateDto fromGame(Game game, String gameType) {
+    public static GameStateDto fromGame(UUID id, Game game, String gameType) {
         return new GameStateDto(
-                game.getId(),
+                id,
                 gameType,
                 game.getBoardSize(),
                 game.getCurrentPlayerId(),

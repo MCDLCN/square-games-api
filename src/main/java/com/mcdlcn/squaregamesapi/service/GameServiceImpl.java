@@ -3,24 +3,24 @@ package com.mcdlcn.squaregamesapi.service;
 import com.mcdlcn.squaregamesapi.dto.GameCreationParams;
 import com.mcdlcn.squaregamesapi.dto.GameStateDto;
 import com.mcdlcn.squaregamesapi.dto.MoveParams;
+import com.mcdlcn.squaregamesapi.dto.PositionDto;
 import com.mcdlcn.squaregamesapi.exception.GameNotFoundException;
 import com.mcdlcn.squaregamesapi.plugin.GamePlugin;
-import fr.le_campus_numerique.square_games.engine.CellPosition;
-import fr.le_campus_numerique.square_games.engine.Game;
-import fr.le_campus_numerique.square_games.engine.InvalidPositionException;
-import fr.le_campus_numerique.square_games.engine.Token;
+import fr.le_campus_numerique.square_games.engine.*;
 import org.springframework.stereotype.Service;
+import com.mcdlcn.squaregamesapi.dao.GameDao;
 
 import java.util.*;
 
 @Service
 public class GameServiceImpl implements GameService {
 
-    private final Map<UUID, StoredGame> games = new HashMap<>();
+    private final GameDao gameDao;
     private final List<GamePlugin> plugins;
 
-    public GameServiceImpl(List<GamePlugin> plugins) {
+    public GameServiceImpl(List<GamePlugin> plugins, GameDao gameDao) {
         this.plugins = plugins;
+        this.gameDao = gameDao;
     }
 
     @Override
@@ -33,35 +33,46 @@ public class GameServiceImpl implements GameService {
         Game game = plugin.createGame(params.playerCount(), params.boardSize());
 
         UUID id = UUID.randomUUID();
-        games.put(id, new StoredGame(plugin.getId(), game));
+        gameDao.save(id, new StoredGame(plugin.getId(), game));
 
         return id;
     }
 
     @Override
-    public GameStateDto getGame(UUID gameId) {
-        StoredGame storedGame = games.get(gameId);
+    public GameStateDto getGame(UUID gameId) throws InconsistentGameDefinitionException {
+        StoredGame storedGame = gameDao.findById(gameId)
+                .orElseThrow(() -> new GameNotFoundException(gameId));
 
-        if (storedGame == null) {
-            throw new GameNotFoundException(gameId);
-        }
-
-        return GameStateDto.fromGame(storedGame.game(), storedGame.gameType());
+        return GameStateDto.fromGame(
+                gameId,
+                storedGame.game(),
+                storedGame.gameType()
+        );
     }
 
     @Override
-    public Collection<String> getPossibleMoves(UUID gameId, String tokenId) {
-        return List.of();
+    public Collection<PositionDto> getPossibleMoves(UUID gameId, String tokenName) throws InconsistentGameDefinitionException {
+        StoredGame storedGame = gameDao.findById(gameId)
+                .orElseThrow(() -> new GameNotFoundException(gameId));
+
+        return storedGame.game()
+                .getRemainingTokens().stream()
+                .filter(token -> token.getName().equals(tokenName))
+                .findFirst()
+                .orElseThrow()
+                .getAllowedMoves().stream()
+                .map(position -> new PositionDto(
+                        position.x(),
+                        position.y()
+                ))
+                .toList();
     }
 
     @Override
     public GameStateDto playMove(UUID gameId, String tokenName, MoveParams moveParams)
-            throws InvalidPositionException {
-        StoredGame storedGame = games.get(gameId);
-
-        if (storedGame == null) {
-            throw new GameNotFoundException(gameId);
-        }
+            throws InvalidPositionException, InconsistentGameDefinitionException {
+        StoredGame storedGame = gameDao.findById(gameId)
+                .orElseThrow(() -> new GameNotFoundException(gameId));
 
         Game game = storedGame.game();
 
@@ -70,14 +81,19 @@ public class GameServiceImpl implements GameService {
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Token not found"));
 
-        CellPosition targetPosition = new CellPosition(moveParams.x(), moveParams.y());
-
-        if (!token.getAllowedMoves().contains(targetPosition)) {
-            throw new IllegalArgumentException("Move is not allowed");
-        }
+        CellPosition targetPosition = new CellPosition(
+                moveParams.x(),
+                moveParams.y()
+        );
 
         token.moveTo(targetPosition);
 
-        return GameStateDto.fromGame(game, storedGame.gameType());
+        gameDao.save(gameId, storedGame);
+
+        return GameStateDto.fromGame(
+                gameId,
+                game,
+                storedGame.gameType()
+        );
     }
 }
