@@ -28,7 +28,7 @@ public class GameController {
     }
 
     @GetMapping("/games/{gameId}")
-    public Object getGame(@PathVariable UUID gameId) throws InconsistentGameDefinitionException {
+    public GameStateDto getGame(@PathVariable UUID gameId) throws InconsistentGameDefinitionException {
         return gameService.getGame(gameId);
     }
 
