@@ -10,7 +10,7 @@ import fr.le_campus_numerique.square_games.engine.InconsistentGameDefinitionExce
 import java.util.*;
 import java.util.stream.Stream;
 
-@Repository
+//@Repository
 public class JdbcGameDao implements GameDao {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
