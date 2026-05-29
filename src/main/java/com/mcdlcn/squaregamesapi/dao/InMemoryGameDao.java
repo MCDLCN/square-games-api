@@ -3,10 +3,7 @@ package com.mcdlcn.squaregamesapi.dao;
 import com.mcdlcn.squaregamesapi.service.StoredGame;
 import org.springframework.stereotype.Repository;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Stream;
 
 //@Repository
@@ -15,9 +12,7 @@ public class InMemoryGameDao implements GameDao {
     private final Map<UUID, StoredGame> games = new HashMap<>();
 
     @Override
-    public Stream<StoredGame> findAll() {
-        return games.values().stream();
-    }
+    public Collection<StoredGame> findAll() { return games.values(); }
 
     @Override
     public Optional<StoredGame> findById(UUID gameId) {

@@ -4,11 +4,10 @@ import com.mcdlcn.squaregamesapi.plugin.GamePlugin;
 import com.mcdlcn.squaregamesapi.service.StoredGame;
 import fr.le_campus_numerique.square_games.engine.*;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.stereotype.Repository;
 import fr.le_campus_numerique.square_games.engine.InconsistentGameDefinitionException;
 
 import java.util.*;
-import java.util.stream.Stream;
+
 
 //@Repository
 public class JdbcGameDao implements GameDao {
@@ -25,8 +24,8 @@ public class JdbcGameDao implements GameDao {
     }
 
     @Override
-    public Stream<StoredGame> findAll() {
-        return Stream.empty();
+    public Collection<StoredGame> findAll() {
+        return List.of();
     }
 
     @Override
