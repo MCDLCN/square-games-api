@@ -7,6 +7,7 @@ import org.springframework.web.client.RestClient;
 
 import java.util.UUID;
 
+@Deprecated
 @Service
 public class RestUserValidationService implements UserValidationService {
 

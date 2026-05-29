@@ -8,6 +8,7 @@ import com.mcdlcn.squaregamesapi.service.GameService;
 import fr.le_campus_numerique.square_games.engine.InconsistentGameDefinitionException;
 import fr.le_campus_numerique.square_games.engine.InvalidPositionException;
 import jakarta.validation.Valid;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collection;
@@ -23,7 +24,11 @@ public class GameController {
     }
 
     @PostMapping("/games")
-    public UUID createGame(@Valid @RequestBody GameCreationParams params, @RequestHeader("X-UserId") UUID userId) throws InconsistentGameDefinitionException {
+    public UUID createGame(
+            @Valid @RequestBody GameCreationParams params,
+            Authentication authentication
+    ) throws InconsistentGameDefinitionException {
+        UUID userId = (UUID) authentication.getPrincipal();
         return gameService.createGame(userId, params);
     }
 
@@ -46,15 +51,17 @@ public class GameController {
             @PathVariable UUID gameId,
             @PathVariable String tokenName,
             @RequestBody @Valid MoveParams moveParams,
-            @RequestHeader("X-UserId") UUID userId
+            Authentication authentication
     ) throws InvalidPositionException, InconsistentGameDefinitionException {
+        UUID userId = (UUID) authentication.getPrincipal();
         return gameService.playMove(userId, gameId, tokenName, moveParams);
     }
 
     @GetMapping("/active")
     public Collection<GameStateDto> getGames(
-            @RequestHeader("X-UserId") UUID userId
+            Authentication authentication
     ) throws InconsistentGameDefinitionException {
+        UUID userId = (UUID) authentication.getPrincipal();
         return gameService.getGames(userId);
     }
 }

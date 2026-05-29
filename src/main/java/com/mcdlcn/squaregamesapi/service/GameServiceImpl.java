@@ -25,21 +25,17 @@ public class GameServiceImpl implements GameService {
 
     private final GameDao gameDao;
     private final List<GamePlugin> plugins;
-    private final UserValidationService userValidationService;
 
     public GameServiceImpl(
             GameDao gameDao,
-            List<GamePlugin> plugins,
-            UserValidationService userValidationService
+            List<GamePlugin> plugins
     ) {
         this.gameDao = gameDao;
         this.plugins = plugins;
-        this.userValidationService = userValidationService;
     }
 
     @Override
     public UUID createGame(UUID userId, GameCreationParams params) throws InconsistentGameDefinitionException {
-        userValidationService.validateUser(userId);
 
         GamePlugin plugin = findPlugin(params.gameType());
 
@@ -47,10 +43,7 @@ public class GameServiceImpl implements GameService {
         playerIds.add(userId);
 
         if (params.opponentIds() != null) {
-            for (UUID opponentId : params.opponentIds()) {
-                userValidationService.validateUser(opponentId);
-                playerIds.add(opponentId);
-            }
+            playerIds.addAll(params.opponentIds());
         }
 
         if (playerIds.size() != params.playerCount()) {
@@ -109,7 +102,6 @@ public class GameServiceImpl implements GameService {
             String tokenName,
             MoveParams moveParams
     ) throws InvalidPositionException, InconsistentGameDefinitionException {
-        userValidationService.validateUser(userId);
 
         StoredGame storedGame = getStoredGame(gameId);
         Game game = storedGame.game();
@@ -134,7 +126,6 @@ public class GameServiceImpl implements GameService {
 
     @Override
     public Collection<GameStateDto> getGames(UUID userId) throws InconsistentGameDefinitionException {
-        userValidationService.validateUser(userId);
 
         List<GameStateDto> games = new ArrayList<>();
 
