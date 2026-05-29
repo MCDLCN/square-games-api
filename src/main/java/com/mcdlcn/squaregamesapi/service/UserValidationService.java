@@ -1,4 +1,8 @@
 package com.mcdlcn.squaregamesapi.service;
 
-public class UserValidationService {
+import java.util.UUID;
+
+public interface UserValidationService {
+
+    void validateUser(UUID userId);
 }

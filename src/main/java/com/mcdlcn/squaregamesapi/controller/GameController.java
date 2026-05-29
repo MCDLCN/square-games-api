@@ -23,8 +23,8 @@ public class GameController {
     }
 
     @PostMapping("/games")
-    public UUID createGame(@Valid @RequestBody GameCreationParams params) {
-        return gameService.createGame(params);
+    public UUID createGame(@Valid @RequestBody GameCreationParams params, @RequestHeader("X-UserId") UUID userId) throws InconsistentGameDefinitionException {
+        return gameService.createGame(userId, params);
     }
 
     @GetMapping("/games/{gameId}")
@@ -45,8 +45,16 @@ public class GameController {
     public GameStateDto playMove(
             @PathVariable UUID gameId,
             @PathVariable String tokenName,
-            @RequestBody @Valid MoveParams moveParams
+            @RequestBody @Valid MoveParams moveParams,
+            @RequestHeader("X-UserId") UUID userId
     ) throws InvalidPositionException, InconsistentGameDefinitionException {
-        return gameService.playMove(gameId, tokenName, moveParams);
+        return gameService.playMove(userId, gameId, tokenName, moveParams);
+    }
+
+    @GetMapping("/active")
+    public Collection<GameStateDto> getGames(
+            @RequestHeader("X-UserId") UUID userId
+    ) throws InconsistentGameDefinitionException {
+        return gameService.getGames(userId);
     }
 }

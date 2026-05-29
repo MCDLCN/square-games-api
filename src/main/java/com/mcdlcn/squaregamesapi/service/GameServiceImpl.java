@@ -1,6 +1,5 @@
 package com.mcdlcn.squaregamesapi.service;
 
-import com.mcdlcn.squaregamesapi.dao.JpaGameDao;
 import com.mcdlcn.squaregamesapi.dto.GameCreationParams;
 import com.mcdlcn.squaregamesapi.dto.GameStateDto;
 import com.mcdlcn.squaregamesapi.dto.MoveParams;
@@ -8,8 +7,10 @@ import com.mcdlcn.squaregamesapi.dto.PositionDto;
 import com.mcdlcn.squaregamesapi.entity.GameEntity;
 import com.mcdlcn.squaregamesapi.entity.GamePlayerEntity;
 import com.mcdlcn.squaregamesapi.entity.GameTokenEntity;
+import com.mcdlcn.squaregamesapi.exception.ForbiddenActionException;
 import com.mcdlcn.squaregamesapi.exception.GameNotFoundException;
 import com.mcdlcn.squaregamesapi.plugin.GamePlugin;
+import com.mcdlcn.squaregamesapi.repository.GameEntityRepository;
 import fr.le_campus_numerique.square_games.engine.*;
 import org.springframework.stereotype.Service;
 
@@ -22,26 +23,60 @@ public class GameServiceImpl implements GameService {
     private static final String TOKEN_LOCATION_REMAINING = "REMAINING";
     private static final String TOKEN_LOCATION_REMOVED = "REMOVED";
 
-    private final JpaGameDao gameDao;
     private final List<GamePlugin> plugins;
+    private final UserValidationService userValidationService;
+    private final GameEntityRepository gameRepository;
 
-    public GameServiceImpl(List<GamePlugin> plugins, JpaGameDao gameDao) {
+    public GameServiceImpl(
+            List<GamePlugin> plugins,
+            GameEntityRepository gameRepository,
+            UserValidationService userValidationService
+    ) {
         this.plugins = plugins;
-        this.gameDao = gameDao;
+        this.gameRepository = gameRepository;
+        this.userValidationService = userValidationService;
     }
 
     @Override
-    public UUID createGame(GameCreationParams params) {
+    public UUID createGame(UUID userId, GameCreationParams params) throws InconsistentGameDefinitionException {
+        userValidationService.validateUser(userId);
+
         GamePlugin plugin = findPlugin(params.gameType());
 
-        Game game = plugin.createGame(params.playerCount(), params.boardSize());
+        List<UUID> playerIds = new ArrayList<>();
+        playerIds.add(userId);
 
-        UUID id = UUID.randomUUID();
-        GameEntity entity = toEntity(id, new StoredGame(plugin.getId(), game));
+        if (params.opponentIds() != null) {
+            for (UUID opponentId : params.opponentIds()) {
+                userValidationService.validateUser(opponentId);
+                playerIds.add(opponentId);
+            }
+        }
 
-        gameDao.save(entity);
+        if (playerIds.size() != params.playerCount()) {
+            throw new IllegalArgumentException(
+                    "Player count does not match the provided users"
+            );
+        }
 
-        return id;
+        UUID gameId = UUID.randomUUID();
+
+        Game game = plugin.getFactory().createGameWithIds(
+                gameId,
+                params.boardSize(),
+                playerIds,
+                List.of(),
+                List.of()
+        );
+
+        GameEntity entity = toEntity(
+                gameId,
+                new StoredGame(plugin.getId(), game)
+        );
+
+        gameRepository.save(entity);
+
+        return gameId;
     }
 
     @Override
@@ -70,11 +105,20 @@ public class GameServiceImpl implements GameService {
     }
 
     @Override
-    public GameStateDto playMove(UUID gameId, String tokenName, MoveParams moveParams)
-            throws InvalidPositionException, InconsistentGameDefinitionException {
-        StoredGame storedGame = getStoredGame(gameId);
+    public GameStateDto playMove(
+            UUID userId,
+            UUID gameId,
+            String tokenName,
+            MoveParams moveParams
+    ) throws InvalidPositionException, InconsistentGameDefinitionException {
+        userValidationService.validateUser(userId);
 
+        StoredGame storedGame = getStoredGame(gameId);
         Game game = storedGame.game();
+
+        if (!userId.equals(game.getCurrentPlayerId())) {
+            throw new ForbiddenActionException("It is not this user's turn");
+        }
 
         Token token = game.getRemainingTokens().stream()
                 .filter(t -> t.getName().equals(tokenName))
@@ -85,7 +129,7 @@ public class GameServiceImpl implements GameService {
 
         token.moveTo(targetPosition);
 
-        gameDao.save(toEntity(gameId, storedGame));
+        gameRepository.save(toEntity(gameId, storedGame));
 
         return GameStateDto.fromGame(
                 gameId,
@@ -94,8 +138,29 @@ public class GameServiceImpl implements GameService {
         );
     }
 
+    @Override
+    public Collection<GameStateDto> getGames(UUID userId) throws InconsistentGameDefinitionException {
+        userValidationService.validateUser(userId);
+
+        List<GameStateDto> games = new ArrayList<>();
+
+        for (GameEntity entity : gameRepository.findAll()) {
+            StoredGame storedGame = toStoredGame(entity);
+
+            if (storedGame.game().getPlayerIds().contains(userId)) {
+                games.add(GameStateDto.fromGame(
+                        entity.id,
+                        storedGame.game(),
+                        storedGame.gameType()
+                ));
+            }
+        }
+
+        return games;
+    }
+
     private StoredGame getStoredGame(UUID gameId) throws InconsistentGameDefinitionException {
-        GameEntity entity = gameDao.findById(gameId)
+        GameEntity entity = gameRepository.findById(gameId)
                 .orElseThrow(() -> new GameNotFoundException(gameId));
 
         return toStoredGame(entity);
@@ -104,7 +169,7 @@ public class GameServiceImpl implements GameService {
     private GameEntity toEntity(UUID gameId, StoredGame storedGame) {
         Game game = storedGame.game();
 
-        GameEntity entity = gameDao.findById(gameId).orElseGet(GameEntity::new);
+        GameEntity entity = gameRepository.findById(gameId).orElseGet(GameEntity::new);
 
         entity.id = gameId;
         entity.gameType = storedGame.gameType();

@@ -1,3 +1,4 @@
+/*
 package com.mcdlcn.squaregamesapi.dao;
 
 import com.mcdlcn.squaregamesapi.entity.GameEntity;
@@ -11,7 +12,7 @@ import java.util.stream.Stream;
 
 @Primary
 @Repository
-public class JpaGameDao {
+public class JpaGameDao implements GameDao {
 
     private final GameEntityRepository repository;
 
@@ -19,19 +20,23 @@ public class JpaGameDao {
         this.repository = repository;
     }
 
+    @Override
     public Stream<GameEntity> findAll() {
         return repository.findAll().stream();
     }
 
+    @Override
     public Optional<GameEntity> findById(UUID gameId) {
         return repository.findById(gameId);
     }
 
+    @Override
     public GameEntity save(GameEntity gameEntity) {
         return repository.save(gameEntity);
     }
 
+    @Override
     public void delete(UUID gameId) {
         repository.deleteById(gameId);
     }
-}
+}*/

@@ -1,5 +1,6 @@
 package com.mcdlcn.squaregamesapi.controller;
 
+import com.mcdlcn.squaregamesapi.exception.ForbiddenActionException;
 import com.mcdlcn.squaregamesapi.exception.GameNotFoundException;
 import fr.le_campus_numerique.square_games.engine.InvalidPositionException;
 import org.springframework.http.HttpStatus;
@@ -49,5 +50,11 @@ public class GlobalExceptionHandler {
         );
 
         return errors;
+    }
+
+    @ExceptionHandler(ForbiddenActionException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Map<String, String> handleForbiddenAction(ForbiddenActionException exception) {
+        return Map.of("error", exception.getMessage());
     }
 }
