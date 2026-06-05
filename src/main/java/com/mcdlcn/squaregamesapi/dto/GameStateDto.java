@@ -1,11 +1,13 @@
 package com.mcdlcn.squaregamesapi.dto;
 
 import fr.le_campus_numerique.square_games.engine.Game;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
 import java.util.UUID;
 
 public record GameStateDto(
+        @Schema(example = "550e8400-e29b-41d4-a716-446655440000")
         UUID id,
         String gameType,
         int boardSize,
